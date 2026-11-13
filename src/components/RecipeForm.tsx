@@ -11,7 +11,8 @@ import { compressImage, scanEnhance } from "@/lib/image";
 export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?: boolean }) {
   const [title, setTitle] = useState(recipe?.title ?? "");
   const [category, setCategory] = useState<CategoryId>(recipe?.category ?? "hoofdgerecht");
-  const [servings, setServings] = useState(recipe?.servings ?? 4);
+  // Tekst-state: zo kan je het veld leegmaken en een nieuw getal typen (anders blijft er een "1" staan).
+  const [servings, setServings] = useState(String(recipe?.servings ?? 4));
   const [prep, setPrep] = useState(recipe?.prepMinutes?.toString() ?? "");
   const [ingredients, setIngredients] = useState(recipe?.ingredients.join("\n") ?? "");
   const [steps, setSteps] = useState(recipe?.steps.join("\n") ?? "");
@@ -30,7 +31,7 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
     mutationFn: () =>
       save({
         data: {
-          id: recipe?.id, title, category, servings,
+          id: recipe?.id, title, category, servings: Math.min(100, Math.max(1, Math.round(Number(servings)) || 1)),
           prepMinutes: prep ? Number(prep) : null,
           ingredients: ingredients.split("\n").map((l) => l.trim()).filter(Boolean),
           steps: steps.split("\n").map((l) => l.trim()).filter(Boolean),
@@ -63,7 +64,7 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
       const parsed = parseRecipeText(data.text);
       setScanText(data.text);
       if (parsed.title) setTitle(parsed.title);
-      if (parsed.servings) setServings(parsed.servings);
+      if (parsed.servings) setServings(String(parsed.servings));
       if (parsed.ingredients.length) setIngredients(parsed.ingredients.join("\n"));
       if (parsed.steps.length) setSteps(parsed.steps.join("\n"));
       toast.success("Tekst herkend — controleer en verbeter waar nodig");
@@ -129,7 +130,7 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label" htmlFor="servings">Personen</label>
-              <input id="servings" type="number" min={1} className="field" value={servings} onChange={(e) => setServings(Math.max(1, Number(e.target.value) || 1))} />
+              <input id="servings" type="number" min={1} className="field" value={servings} onChange={(e) => setServings(e.target.value)} onBlur={() => setServings(String(Math.min(100, Math.max(1, Math.round(Number(servings)) || 1))))} inputMode="numeric" />
             </div>
             <div>
               <label className="label" htmlFor="prep">Bereidingstijd (min)</label>
@@ -168,7 +169,7 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
         <textarea id="notes" rows={3} className="field ruled" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Tips, variaties, bron…" />
       </div>
       <div className="flex justify-end gap-3">
-        <button type="button" className="btn-ghost" onClick={() => history.back()}>Annuleren</button>
+        <button type="button" className="btn-ghost" onClick={() => (history.length > 1 ? history.back() : navigate({ to: "/" }))}>Annuleren</button>
         <button type="submit" className="btn-primary px-6" disabled={mutation.isPending}>
           {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Recept bewaren
         </button>

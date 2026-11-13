@@ -1,8 +1,7 @@
+# Image komt uit GitHub Actions (zie .github/workflows/docker.yml).
+# Lokaal bouwen i.p.v. de image ophalen: zet hieronder "build: ." bij en gebruik `docker compose up -d --build`.
 services:
   dish:
-    # Lokaal bouwen:   docker compose up -d --build
-    # Of via GitHub:   image: ghcr.io/bigbuud/dish:latest   (en de regel "build" weglaten)
-    build: .
     image: ghcr.io/bigbuud/dish:latest
     container_name: dish
     restart: unless-stopped
