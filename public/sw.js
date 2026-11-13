@@ -21,7 +21,7 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     fetch(req)
       .then((res) => {
-        if (res.ok && res.type === "basic") {
+        if (res.ok && res.type === "basic" && !res.redirected) {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(req, copy));
         }

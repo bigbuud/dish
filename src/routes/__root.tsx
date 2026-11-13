@@ -3,6 +3,7 @@ import {
   Outlet,
   Link,
   createRootRouteWithContext,
+  redirect,
   useRouter,
   HeadContent,
   Scripts,
@@ -11,9 +12,10 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import { Toaster } from "sonner";
-import { Plus } from "lucide-react";
+import { LogOut, Plus } from "lucide-react";
 import appCss from "../styles.css?url";
 import { Logo } from "../components/Logo";
+import { getAuthStatus, logout } from "../lib/auth.functions";
 
 function NotFoundComponent() {
   return (
@@ -27,8 +29,13 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
-  console.error(error);
   const router = useRouter();
+  const loggedOut = error instanceof Error && error.message.includes("Niet ingelogd");
+  useEffect(() => {
+    if (loggedOut) window.location.assign("/login");
+  }, [loggedOut]);
+  if (loggedOut) return null;
+  console.error(error);
   return (
     <main className="mx-auto max-w-md px-5 py-24 text-center">
       <h1>Oeps!</h1>
@@ -42,6 +49,29 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  // Elke pagina behalve /login en /setup vereist een geldige sessie.
+  // (De echte beveiliging zit in de server functions; dit zorgt voor de doorverwijzing.)
+  beforeLoad: async ({ location }) => {
+    const path = location.pathname;
+    let status: { hasUser: boolean; authed: boolean };
+    try {
+      status = await getAuthStatus();
+    } catch (e) {
+      // Offline in de geïnstalleerde app: laat de pagina proberen uit de cache te laden.
+      if (typeof window !== "undefined") return { authed: true };
+      throw e;
+    }
+    if (!status.hasUser) {
+      if (path !== "/setup") throw redirect({ to: "/setup" });
+      return { authed: false };
+    }
+    if (!status.authed) {
+      if (path !== "/login") throw redirect({ to: "/login" });
+      return { authed: false };
+    }
+    if (path === "/login" || path === "/setup") throw redirect({ to: "/" });
+    return { authed: true };
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -82,7 +112,17 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
-  const { queryClient } = Route.useRouteContext();
+  const { queryClient, authed } = Route.useRouteContext();
+
+  async function doLogout() {
+    try {
+      await logout();
+      // geen gegevens van deze gebruiker achterlaten in de offline-cache
+      if ("caches" in window) (await caches.keys()).forEach((k) => caches.delete(k));
+    } finally {
+      window.location.assign("/login");
+    }
+  }
 
   // Maakt Dish installeerbaar en laat eerder bekeken recepten offline openen.
   useEffect(() => {
@@ -99,11 +139,18 @@ function RootComponent() {
             <Logo className="h-9 w-11" />
             <span className="scribble">Dish</span>
           </Link>
-          <Link to="/recepten/nieuw" className="btn-primary">
-            <Plus className="h-5 w-5" />
-            <span className="hidden sm:inline">Nieuw recept</span>
-            <span className="sm:hidden">Nieuw</span>
-          </Link>
+          {authed && (
+            <div className="flex items-center gap-2">
+              <Link to="/recepten/nieuw" className="btn-primary">
+                <Plus className="h-5 w-5" />
+                <span className="hidden sm:inline">Nieuw recept</span>
+                <span className="sm:hidden">Nieuw</span>
+              </Link>
+              <button onClick={doLogout} className="btn-ghost px-2" title="Uitloggen" aria-label="Uitloggen">
+                <LogOut className="h-5 w-5" />
+              </button>
+            </div>
+          )}
         </div>
       </header>
       <Outlet />

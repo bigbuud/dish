@@ -9,5 +9,6 @@ services:
       - "8086:3000"
     environment:
       - TZ=Europe/Brussels
+      # - SESSION_DAYS=365   # hoe lang je ingelogd blijft (schuift mee bij gebruik)
     volumes:
       - ./data:/data

@@ -2,15 +2,17 @@ import { createServerFn } from "@tanstack/react-start";
 import { queryOptions } from "@tanstack/react-query";
 import { z } from "zod";
 import { recipeInputSchema, type Recipe } from "./recipes";
+import { requireAuth } from "./auth.functions";
 
 const store = () => import("./store.server");
 
-export const listRecipes = createServerFn({ method: "GET" }).handler(async () => {
+export const listRecipes = createServerFn({ method: "GET" }).middleware([requireAuth]).handler(async () => {
   const { readRecipes } = await store();
   return readRecipes();
 });
 
 export const getRecipe = createServerFn({ method: "GET" })
+  .middleware([requireAuth])
   .inputValidator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
     const { readRecipes } = await store();
@@ -18,6 +20,7 @@ export const getRecipe = createServerFn({ method: "GET" })
   });
 
 export const saveRecipe = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
   .inputValidator(recipeInputSchema)
   .handler(async ({ data }) => {
     const { mutateRecipes } = await store();
@@ -38,6 +41,7 @@ export const saveRecipe = createServerFn({ method: "POST" })
   });
 
 export const updateRecipeMeta = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
   .inputValidator(z.object({ id: z.string(), favorite: z.boolean().optional(), rating: z.number().int().min(0).max(5).optional() }))
   .handler(async ({ data }) => {
     const { mutateRecipes } = await store();
@@ -51,6 +55,7 @@ export const updateRecipeMeta = createServerFn({ method: "POST" })
   });
 
 export const deleteRecipe = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
   .inputValidator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
     const { mutateRecipes } = await store();
