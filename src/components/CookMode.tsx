@@ -79,13 +79,19 @@ export function CookMode({ recipe, ingredients, onClose }: { recipe: Recipe; ing
           )}
         </div>
       </main>
-      <footer className="flex items-center justify-between gap-3 border-t-2 border-foreground p-4">
-        <button className="btn-outline px-6 py-3 text-base" disabled={step === 0} onClick={prev}><ChevronLeft className="h-5 w-5" /> Vorige</button>
-        <div className="flex gap-1">{Array.from({ length: total + 1 }, (_, i) => <span key={i} className={`h-2 w-5 rounded-full ${i <= step ? "bg-foreground" : "bg-border"}`} />)}</div>
+      <footer className="flex items-center gap-3 border-t-2 border-foreground p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
+        <button className="btn-outline shrink-0 px-4 py-2 text-base sm:px-6 sm:py-3" disabled={step === 0} onClick={prev} aria-label="Vorige">
+          <ChevronLeft className="h-5 w-5" /> <span className="hidden min-[380px]:inline">Vorige</span>
+        </button>
+        <div className="h-3 min-w-0 flex-1 overflow-hidden rounded-full border-2 border-foreground bg-card" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={step}>
+          <div className="h-full bg-accent transition-all" style={{ width: `${total ? (step / total) * 100 : 100}%` }} />
+        </div>
         {step < total ? (
-          <button className="btn-primary px-6 py-3 text-base" onClick={next}>Volgende <ChevronRight className="h-5 w-5" /></button>
+          <button className="btn-primary shrink-0 px-4 py-2 text-base sm:px-6 sm:py-3" onClick={next} aria-label="Volgende">
+            <span className="hidden min-[380px]:inline">Volgende</span> <ChevronRight className="h-5 w-5" />
+          </button>
         ) : (
-          <button className="btn-primary px-6 py-3 text-base" onClick={onClose}>Smakelijk!</button>
+          <button className="btn-primary shrink-0 px-4 py-2 text-base sm:px-6 sm:py-3" onClick={onClose}>Smakelijk!</button>
         )}
       </footer>
     </div>
