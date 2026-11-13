@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type TouchEvent } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import type { Recipe } from "@/lib/recipes";
 
@@ -7,6 +7,27 @@ export function CookMode({ recipe, ingredients, onClose }: { recipe: Recipe; ing
   const [step, setStep] = useState(0);
   const [awake, setAwake] = useState(false);
   const total = recipe.steps.length;
+  const touch = useRef<{ x: number; y: number } | null>(null);
+
+  const next = () => setStep((s) => Math.min(total, s + 1));
+  const prev = () => setStep((s) => Math.max(0, s - 1));
+
+  // Vegen: naar links = volgende stap, naar rechts = vorige. Verticaal scrollen blijft werken.
+  const onTouchStart = (e: TouchEvent) => {
+    const t = e.touches[0];
+    touch.current = t ? { x: t.clientX, y: t.clientY } : null;
+  };
+  const onTouchEnd = (e: TouchEvent) => {
+    const start = touch.current;
+    const t = e.changedTouches[0];
+    touch.current = null;
+    if (!start || !t) return;
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    if (dx < 0) next();
+    else prev();
+  };
 
   useEffect(() => {
     let lock: WakeLockSentinel | null = null;
@@ -41,7 +62,7 @@ export function CookMode({ recipe, ingredients, onClose }: { recipe: Recipe; ing
         </div>
         <button className="btn-ghost h-10 w-10 p-0" onClick={onClose} aria-label="Sluiten"><X className="h-5 w-5" /></button>
       </header>
-      <main className="flex flex-1 items-center justify-center overflow-auto p-6">
+      <main className="flex flex-1 touch-pan-y items-center justify-center overflow-auto p-6" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         <div className="max-w-3xl">
           {step === 0 ? (
             <>
@@ -59,10 +80,10 @@ export function CookMode({ recipe, ingredients, onClose }: { recipe: Recipe; ing
         </div>
       </main>
       <footer className="flex items-center justify-between gap-3 border-t-2 border-foreground p-4">
-        <button className="btn-outline px-6 py-3 text-base" disabled={step === 0} onClick={() => setStep(step - 1)}><ChevronLeft className="h-5 w-5" /> Vorige</button>
+        <button className="btn-outline px-6 py-3 text-base" disabled={step === 0} onClick={prev}><ChevronLeft className="h-5 w-5" /> Vorige</button>
         <div className="flex gap-1">{Array.from({ length: total + 1 }, (_, i) => <span key={i} className={`h-2 w-5 rounded-full ${i <= step ? "bg-foreground" : "bg-border"}`} />)}</div>
         {step < total ? (
-          <button className="btn-primary px-6 py-3 text-base" onClick={() => setStep(step + 1)}>Volgende <ChevronRight className="h-5 w-5" /></button>
+          <button className="btn-primary px-6 py-3 text-base" onClick={next}>Volgende <ChevronRight className="h-5 w-5" /></button>
         ) : (
           <button className="btn-primary px-6 py-3 text-base" onClick={onClose}>Smakelijk!</button>
         )}
