@@ -1,0 +1,14 @@
+services:
+  dish:
+    # Lokaal bouwen:   docker compose up -d --build
+    # Of via GitHub:   image: ghcr.io/bigbuud/dish:latest   (en de regel "build" weglaten)
+    build: .
+    image: ghcr.io/bigbuud/dish:latest
+    container_name: dish
+    restart: unless-stopped
+    ports:
+      - "8086:3000"
+    environment:
+      - TZ=Europe/Brussels
+    volumes:
+      - ./data:/data
