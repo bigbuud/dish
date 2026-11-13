@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type DragEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -7,6 +7,25 @@ import { toast } from "sonner";
 import { CATEGORIES, parseRecipeText, type CategoryId, type Recipe } from "@/lib/recipes";
 import { saveRecipe } from "@/lib/recipes.functions";
 import { compressImage, scanEnhance } from "@/lib/image";
+
+/** Maakt een element geschikt om een afbeelding op te slepen (pc). */
+function useImageDrop(onFile: (file: File) => void) {
+  const [over, setOver] = useState(false);
+  const props = {
+    onDragEnter: (e: DragEvent) => { e.preventDefault(); setOver(true); },
+    onDragOver: (e: DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setOver(true); },
+    onDragLeave: (e: DragEvent) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(false); },
+    onDrop: (e: DragEvent) => {
+      e.preventDefault();
+      setOver(false);
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+      if (!file.type.startsWith("image/")) return toast.error("Dat is geen afbeelding");
+      onFile(file);
+    },
+  };
+  return { over, props };
+}
 
 export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?: boolean }) {
   const [title, setTitle] = useState(recipe?.title ?? "");
@@ -23,6 +42,18 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
   const scanCam = useRef<HTMLInputElement>(null);
   const scanFile = useRef<HTMLInputElement>(null);
   const photoRef = useRef<HTMLInputElement>(null);
+  const photoCam = useRef<HTMLInputElement>(null);
+
+  async function setPhoto(file?: File) {
+    if (!file) return;
+    try {
+      setImage(await compressImage(file));
+    } catch {
+      toast.error("Die foto kon niet worden geopend (probeer JPG of PNG)");
+    }
+  }
+  const photoDrop = useImageDrop(setPhoto);
+  const scanDrop = useImageDrop((f) => handleScan(f));
 
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -82,10 +113,10 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
       onSubmit={(e) => { e.preventDefault(); if (!title.trim()) return toast.error("Geef een titel"); mutation.mutate(); }}
     >
       {allowScan && (
-        <section className="card overflow-hidden">
+        <section {...scanDrop.props} className={`card overflow-hidden transition ${scanDrop.over ? "bg-accent/40 outline-dashed outline-4 outline-offset-2 outline-foreground" : ""}`}>
           <div className="hero-band border-b-2 border-foreground px-6 py-4">
             <h2 className="flex items-center gap-2"><ScanText className="h-7 w-7" /> Scan een recept</h2>
-            <p className="mt-1">Fotografeer een kookboekpagina of briefje. De tekst wordt herkend en ingevuld — of typ hieronder zelf.</p>
+            <p className="mt-1">Fotografeer een kookboekpagina of briefje. De tekst wordt herkend en ingevuld — of typ hieronder zelf. <span className="hidden [@media(hover:hover)]:inline">Op de computer kun je een afbeelding ook op deze kaart slepen.</span></p>
           </div>
           <div className="flex flex-wrap items-center gap-3 p-5">
             <input ref={scanCam} type="file" accept="image/*" capture="environment" hidden onChange={(e) => handleScan(e.target.files?.[0])} />
@@ -140,17 +171,29 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
         </div>
         <div>
           <span className="label">Foto van het gerecht</span>
-          <input ref={photoRef} type="file" accept="image/*" hidden onChange={async (e) => { const f = e.target.files?.[0]; if (f) setImage(await compressImage(f)); }} />
-          {image ? (
-            <div className="relative">
-              <img src={image} alt="" className="wobbly-sm aspect-square w-full border-2 border-foreground object-cover" />
-              <button type="button" aria-label="Foto verwijderen" onClick={() => setImage(null)} className="btn absolute right-2 top-2 h-9 w-9 bg-card p-0 text-foreground"><X className="h-4 w-4" /></button>
-            </div>
-          ) : (
-            <button type="button" onClick={() => photoRef.current?.click()} className="wobbly-sm flex aspect-square w-full flex-col items-center justify-center gap-2 border-2 border-dashed border-foreground/60 bg-card/70 font-display text-xl font-bold text-muted-foreground transition hover:bg-accent/40 hover:text-foreground">
-              <ImagePlus className="h-7 w-7" /> Foto toevoegen
-            </button>
-          )}
+          <input ref={photoRef} type="file" accept="image/*" hidden onChange={(e) => { setPhoto(e.target.files?.[0]); e.target.value = ""; }} />
+          <input ref={photoCam} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { setPhoto(e.target.files?.[0]); e.target.value = ""; }} />
+          <div {...photoDrop.props} className={`relative rounded-[inherit] ${photoDrop.over ? "outline-dashed outline-4 outline-offset-2 outline-foreground" : ""}`}>
+            {image ? (
+              <>
+                <img src={image} alt="" className="wobbly-sm aspect-square w-full border-2 border-foreground object-cover" />
+                <button type="button" aria-label="Foto verwijderen" onClick={() => setImage(null)} className="btn absolute right-2 top-2 h-9 w-9 bg-card p-0 text-foreground"><X className="h-4 w-4" /></button>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button type="button" className="btn-outline px-3 py-0.5 text-lg" onClick={() => photoCam.current?.click()}><Camera className="h-4 w-4" /> Nieuwe foto</button>
+                  <button type="button" className="btn-outline px-3 py-0.5 text-lg" onClick={() => photoRef.current?.click()}><ImagePlus className="h-4 w-4" /> Andere kiezen</button>
+                </div>
+              </>
+            ) : (
+              <div className={`wobbly-sm flex aspect-square w-full flex-col items-center justify-center gap-3 border-2 border-dashed border-foreground/60 p-3 text-center transition ${photoDrop.over ? "bg-accent/60" : "bg-card/70"}`}>
+                <ImagePlus className="h-8 w-8 text-muted-foreground" />
+                <span className="hidden font-display text-xl font-bold text-muted-foreground [@media(hover:hover)]:block">Sleep een foto hierheen</span>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <button type="button" className="btn-primary px-3 py-1 text-lg" onClick={() => photoCam.current?.click()}><Camera className="h-5 w-5" /> Foto maken</button>
+                  <button type="button" className="btn-outline px-3 py-1 text-lg" onClick={() => photoRef.current?.click()}><ImagePlus className="h-5 w-5" /> Kiezen</button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
