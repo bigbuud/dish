@@ -1,11 +1,8 @@
 // Alleen op de server. Leest een foto van een recept (ook handgeschreven) met Google Gemini en geeft een nette, gestructureerde versie terug.
 // Vereist GEMINI_API_KEY (gratis aan te maken in Google AI Studio); zonder sleutel valt de app terug op de lokale OCR (tesseract) in de browser.
 // Kommalijst: de eerste die werkt wint. Bij 404 (model bestaat niet/niet voor jouw sleutel) of 429 (limiet) probeert Dish de volgende.
-<<<<<<< HEAD
 import { CATEGORY_IDS, type CategoryId } from "./recipes";
 
-=======
->>>>>>> 7cccd9c21348091326d4496cd7cb367b19542cfa
 const MODELS = () =>
   (process.env.GEMINI_MODEL || "gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash-lite")
     .split(",").map((m) => m.trim()).filter(Boolean);
