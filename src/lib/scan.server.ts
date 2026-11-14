@@ -1,7 +1,10 @@
 // Alleen op de server. Leest een foto van een recept (ook handgeschreven) met Google Gemini en geeft een nette, gestructureerde versie terug.
 // Vereist GEMINI_API_KEY (gratis aan te maken in Google AI Studio); zonder sleutel valt de app terug op de lokale OCR (tesseract) in de browser.
-const MODEL = () => process.env.GEMINI_MODEL || "gemini-2.5-flash";
-const API = () => `https://generativelanguage.googleapis.com/v1beta/models/${MODEL()}:generateContent`;
+// Kommalijst: de eerste die werkt wint. Bij 404 (model bestaat niet/niet voor jouw sleutel) of 429 (limiet) probeert Dish de volgende.
+const MODELS = () =>
+  (process.env.GEMINI_MODEL || "gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash-lite")
+    .split(",").map((m) => m.trim()).filter(Boolean);
+const API = (model: string) => `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
 const PROMPT = `Dit is een foto van een recept: een kookboekpagina, een uitgeprinte pagina, een handgeschreven briefje of een schrift. De tekst is meestal Nederlands (Vlaams).
 Lees de volledige tekst en zet het om naar een net recept in het gevraagde JSON-formaat.
@@ -36,7 +39,7 @@ export async function scanWithGemini(dataUrl: string): Promise<ScanOutcome> {
   if (!m) return { ok: false, reason: "error", message: "Onbekend afbeeldingsformaat" };
 
   try {
-    const res = await fetch(API(), {
+    const call = (model: string) => fetch(API(model), {
       method: "POST",
       signal: AbortSignal.timeout(90_000),
       headers: { "content-type": "application/json", "x-goog-api-key": key },
@@ -61,10 +64,18 @@ export async function scanWithGemini(dataUrl: string): Promise<ScanOutcome> {
         },
       }),
     });
-    if (!res.ok) {
+    let res: Response | undefined;
+    let lastStatus = 0;
+    for (const model of MODELS()) {
+      res = await call(model);
+      if (res.ok) break;
+      lastStatus = res.status;
       const body = await res.text().catch(() => "");
-      console.error("Gemini scan mislukt", res.status, body.slice(0, 500));
-      return { ok: false, reason: "error", message: res.status === 429 ? "Daglimiet bereikt" : `API-fout ${res.status}` };
+      console.error(`Gemini scan mislukt (${model})`, res.status, body.slice(0, 500));
+      if (![403, 404, 429].includes(res.status)) break; // alleen bij "bestaat niet / limiet" het volgende model proberen
+    }
+    if (!res?.ok) {
+      return { ok: false, reason: "error", message: lastStatus === 429 ? "Daglimiet bereikt" : `API-fout ${lastStatus || "geen verbinding"}` };
     }
     const json = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
     const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("");
