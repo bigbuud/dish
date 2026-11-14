@@ -5,7 +5,10 @@ export const CATEGORIES = [
   { id: "hoofdgerecht", label: "Hoofdgerecht" },
   { id: "dessert", label: "Dessert" },
   { id: "gebak-brood", label: "Gebak & brood" },
+  { id: "overige", label: "Overige" }, // hummus, hapjes, snacks, dips, ...
 ] as const;
+
+export const CATEGORY_IDS = CATEGORIES.map((c) => c.id) as unknown as readonly [CategoryId, ...CategoryId[]];
 
 export type CategoryId = (typeof CATEGORIES)[number]["id"];
 
@@ -15,7 +18,7 @@ export const categoryLabel = (id: string) =>
 export const recipeInputSchema = z.object({
   id: z.string().optional(),
   title: z.string().trim().min(1, "Geef een titel").max(200),
-  category: z.enum(["soep", "hoofdgerecht", "dessert", "gebak-brood"]),
+  category: z.enum(CATEGORY_IDS),
   servings: z.number().int().min(1).max(100),
   prepMinutes: z.number().int().min(0).max(10000).nullable(),
   ingredients: z.array(z.string().trim().min(1).max(500)).max(200),

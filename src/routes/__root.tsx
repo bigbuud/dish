@@ -133,7 +133,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <header className="sticky top-0 z-40 border-b-2 border-foreground bg-background pt-[env(safe-area-inset-top)]">
+      <header className="print:hidden sticky top-0 z-40 border-b-2 border-foreground bg-background pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex max-w-6xl items-center justify-between py-2 pl-[calc(var(--margin-x)+0.9rem)] pr-4 sm:pr-5">
           <Link to="/" className="flex items-center gap-3 font-display text-4xl font-bold leading-none text-foreground">
             <Logo className="h-9 w-11" />

@@ -1,13 +1,14 @@
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
-import { ArrowLeft, ChefHat, Clock, Heart, Minus, Pencil, Plus, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowLeft, ChefHat, Clock, Copy, Heart, Mail, Minus, MessageCircle, Pencil, Plus, Printer, Share2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { categoryLabel, scaleIngredient } from "@/lib/recipes";
 import { deleteRecipe, recipeQuery, updateRecipeMeta } from "@/lib/recipes.functions";
 import { Stars } from "@/components/Stars";
 import { CookMode } from "@/components/CookMode";
+import { recipeToText } from "@/lib/share";
 
 export const Route = createFileRoute("/recepten/$id/")({
   loader: async ({ context, params }) => {
@@ -35,6 +36,9 @@ function Detail() {
   const { data: r } = useSuspenseQuery(recipeQuery(id));
   const [servings, setServings] = useState(r?.servings ?? 1);
   const [cooking, setCooking] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [canNativeShare, setCanNativeShare] = useState(false);
+  useEffect(() => setCanNativeShare(typeof navigator !== "undefined" && "share" in navigator), []);
   const qc = useQueryClient();
   const navigate = useNavigate();
   const meta = useServerFn(updateRecipeMeta);
@@ -56,10 +60,31 @@ function Detail() {
   if (!r) return null;
   const factor = servings / r.servings;
   const scaled = r.ingredients.map((i) => scaleIngredient(i, factor));
+  const shareText = () => recipeToText(r, scaled, servings);
+
+  async function nativeShare() {
+    try {
+      await navigator.share({ title: r!.title, text: shareText() });
+      setShareOpen(false);
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") toast.error("Delen is niet gelukt");
+    }
+  }
+  async function copyText() {
+    try {
+      await navigator.clipboard.writeText(shareText());
+      toast.success("Recept gekopieerd");
+      setShareOpen(false);
+    } catch {
+      toast.error("Kopiëren is niet gelukt");
+    }
+  }
+  const whatsappUrl = () => `https://wa.me/?text=${encodeURIComponent(shareText())}`;
+  const mailUrl = () => `mailto:?subject=${encodeURIComponent(r!.title)}&body=${encodeURIComponent(shareText())}`;
 
   return (
     <main className="page mx-auto max-w-5xl pb-20 pt-6">
-      <Link to="/" className="btn-ghost -ml-3 mb-4"><ArrowLeft className="h-4 w-4" /> Alle recepten</Link>
+      <Link to="/" className="btn-ghost -ml-3 mb-4 print:hidden"><ArrowLeft className="h-4 w-4" /> Alle recepten</Link>
       <div className="grid gap-8 md:grid-cols-[1.1fr_1fr]">
         <div>
           <span className="wobbly-sm inline-block border-2 border-foreground bg-accent px-3 font-display text-xl font-bold">{categoryLabel(r.category)}</span>
@@ -71,20 +96,30 @@ function Detail() {
               <Heart className={`h-5 w-5 ${r.favorite ? "fill-destructive text-destructive" : ""}`} /> {r.favorite ? "Favoriet" : "Als favoriet"}
             </button>
           </div>
-          <div className="mt-6 flex flex-wrap gap-2">
+          <div className="mt-6 flex flex-wrap gap-2 print:hidden">
             {r.steps.length > 0 && <button className="btn-primary px-5 py-2.5" onClick={() => setCooking(true)}><ChefHat className="h-4 w-4" /> Start kookmodus</button>}
+            <button className="btn-outline" aria-expanded={shareOpen} onClick={() => setShareOpen(!shareOpen)}><Share2 className="h-4 w-4" /> Delen</button>
+            <button className="btn-outline" onClick={() => window.print()}><Printer className="h-4 w-4" /> Afdrukken</button>
             <Link to="/recepten/$id/edit" params={{ id }} className="btn-outline"><Pencil className="h-4 w-4" /> Bewerken</Link>
             <button className="btn-danger" onClick={() => confirm("Dit recept verwijderen?") && delMut.mutate()}><Trash2 className="h-4 w-4" /> Verwijderen</button>
           </div>
+          {shareOpen && (
+            <div className="wobbly-sm mt-3 flex flex-wrap gap-2 border-2 border-foreground bg-card p-3 print:hidden">
+              {canNativeShare && <button className="btn-primary" onClick={nativeShare}><Share2 className="h-4 w-4" /> Delen via…</button>}
+              <a className="btn-outline" href={whatsappUrl()} target="_blank" rel="noopener noreferrer"><MessageCircle className="h-4 w-4" /> WhatsApp</a>
+              <a className="btn-outline" href={mailUrl()}><Mail className="h-4 w-4" /> E-mail</a>
+              <button className="btn-outline" onClick={copyText}><Copy className="h-4 w-4" /> Kopieer tekst</button>
+            </div>
+          )}
         </div>
-        {r.image && <div className="tape rotate-1"><img src={r.image} alt={r.title} className="card aspect-[4/3] w-full object-cover" /></div>}
+        {r.image && <div className="tape rotate-1 print:rotate-0 print:max-h-60 print:overflow-hidden"><img src={r.image} alt={r.title} className="card aspect-[4/3] w-full object-cover" /></div>}
       </div>
 
       <div className="mt-12 grid gap-10 md:grid-cols-[1fr_1.6fr]">
         <section className="card ruled h-fit p-5">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <h2 className="leading-none">Ingrediënten</h2>
-            <div className="wobbly-sm flex items-center gap-1 border-2 border-foreground bg-card p-0.5">
+            <div className="wobbly-sm flex items-center gap-1 border-2 border-foreground bg-card p-0.5 print:hidden">
               <button className="btn-ghost h-8 w-8 p-0" aria-label="Minder personen" onClick={() => setServings(Math.max(1, servings - 1))}><Minus className="h-4 w-4" /></button>
               <span className="min-w-16 text-center font-display text-xl font-bold">{servings} pers.</span>
               <button className="btn-ghost h-8 w-8 p-0" aria-label="Meer personen" onClick={() => setServings(servings + 1)}><Plus className="h-4 w-4" /></button>

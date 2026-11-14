@@ -167,3 +167,14 @@
 
 /* Inhoud begint rechts van de rode kantlijn */
 @utility page { padding-left: calc(var(--margin-x) + 1rem); padding-right: 1rem; }
+
+/* Afdrukken: schoon wit blad zonder schrift-achtergrond, schaduwen of meldingen. */
+@media print {
+  html { font-size: 14px; }
+  body { background: #fff !important; background-image: none !important; min-height: 0; }
+  [data-sonner-toaster] { display: none !important; }
+  .card, .ruled { box-shadow: none !important; background-image: none !important; break-inside: avoid; }
+  .tape::before, .tape::after { display: none !important; }
+  main { padding-top: 0 !important; padding-bottom: 0 !important; }
+  ol li { break-inside: avoid; }
+}
