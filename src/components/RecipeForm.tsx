@@ -87,6 +87,7 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
     try {
       // 1) Slimme scan via Gemini: leest ook handschrift en geeft meteen een net recept terug.
       let aiFailed = false;
+      let aiError = "";
       try {
         setScanMode("ai");
         const res = await scanAI({ data: { image: await compressImage(file, 2000) } });
@@ -104,11 +105,13 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
         }
         if (res.reason === "no-key") toast.message("Geen Gemini-sleutel ingesteld — gewone tekstherkenning gebruikt");
         aiFailed = res.reason === "error";
+        if (!res.ok) aiError = res.message ?? "";
       } catch (e) {
         console.error(e);
         aiFailed = true;
+        aiError = (e as Error)?.message ?? "";
       }
-      if (aiFailed) toast.message("Slimme scan niet bereikbaar — gewone tekstherkenning gebruikt");
+      if (aiFailed) toast.message(`Slimme scan mislukt${aiError ? ` (${aiError})` : ""} — gewone tekstherkenning gebruikt`, { duration: 12000 });
 
       // 2) Terugval: lokale OCR (tesseract), werkt offline maar leest geen handschrift.
       setScanMode("ocr");
