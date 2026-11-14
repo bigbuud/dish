@@ -11,7 +11,7 @@ services:
       - TZ=Europe/Brussels
       # Slimme scan (handschrift!) via Google Gemini (gratis sleutel: https://aistudio.google.com/apikey). Zonder sleutel gebruikt Dish de gewone lokale OCR.
       # - GEMINI_API_KEY=AIza...
-      # - GEMINI_MODEL=gemini-2.5-flash
+      # - GEMINI_MODEL=gemini-3.8-flash,gemini-3.6-flash   # optioneel; kommalijst, eerste die werkt wint
       # - SESSION_DAYS=365   # hoe lang je ingelogd blijft (schuift mee bij gebruik)
     volumes:
       - ./data:/data
