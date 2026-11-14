@@ -66,16 +66,22 @@ export async function scanWithGemini(dataUrl: string): Promise<ScanOutcome> {
     });
     let res: Response | undefined;
     let lastStatus = 0;
-    for (const model of MODELS()) {
-      res = await call(model);
-      if (res.ok) break;
-      lastStatus = res.status;
-      const body = await res.text().catch(() => "");
-      console.error(`Gemini scan mislukt (${model})`, res.status, body.slice(0, 500));
-      if (![403, 404, 429].includes(res.status)) break; // alleen bij "bestaat niet / limiet" het volgende model proberen
+    // Twee rondes langs de modellen: bij 503 (Google overbelast), 500/502/504, 403/404 (model niet beschikbaar) of 429 (limiet) volgt het volgende model.
+    for (let round = 0; round < 2 && !res?.ok; round++) {
+      if (round > 0) await new Promise((r) => setTimeout(r, 3000));
+      for (const model of MODELS()) {
+        res = await call(model);
+        if (res.ok) break;
+        lastStatus = res.status;
+        const body = await res.text().catch(() => "");
+        console.error(`Gemini scan mislukt (${model})`, res.status, body.slice(0, 500));
+        if (![403, 404, 429, 500, 502, 503, 504].includes(res.status)) return { ok: false, reason: "error", message: `API-fout ${res.status}` };
+      }
     }
     if (!res?.ok) {
-      return { ok: false, reason: "error", message: lastStatus === 429 ? "Daglimiet bereikt" : `API-fout ${lastStatus || "geen verbinding"}` };
+      const message =
+        lastStatus === 429 ? "Daglimiet bereikt" : lastStatus === 503 ? "Google is overbelast, probeer zo opnieuw" : `API-fout ${lastStatus || "geen verbinding"}`;
+      return { ok: false, reason: "error", message };
     }
     const json = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
     const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("");
