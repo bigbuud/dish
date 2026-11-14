@@ -102,6 +102,7 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
           toast.success("Recept gelezen — controleer vooral woorden met [?]");
           return;
         }
+        if (res.reason === "no-key") toast.message("Geen Gemini-sleutel ingesteld — gewone tekstherkenning gebruikt");
         aiFailed = res.reason === "error";
       } catch (e) {
         console.error(e);
@@ -133,6 +134,9 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
     } catch (e) {
       toast.error("Scannen mislukt. Probeer een scherpere foto.");
       console.error(e);
+      if (/memory|allocation|abort/i.test(String((e as Error)?.message ?? e))) {
+        toast.error("Te weinig geheugen voor de gewone scan. Stel een Gemini-sleutel in of probeer een kleinere foto.");
+      }
     } finally {
       setScanning(null);
     }

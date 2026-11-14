@@ -24,7 +24,8 @@ export async function compressImage(file: File, max = 1400): Promise<string> {
  */
 export async function scanEnhance(file: File): Promise<HTMLCanvasElement> {
   const img = await loadImage(file);
-  const scale = Math.min(2, 2800 / Math.max(img.width, img.height));
+  // Nooit opschalen en maximaal ~2000 px: groter kost op een telefoon te veel geheugen (tesseract draait in WebAssembly).
+  const scale = Math.min(1, 2000 / Math.max(img.width, img.height));
   const w = Math.round(img.width * scale);
   const h = Math.round(img.height * scale);
   const c = document.createElement("canvas");
@@ -39,7 +40,7 @@ export async function scanEnhance(file: File): Promise<HTMLCanvasElement> {
   for (let i = 0, j = 0; i < p.length; i += 4, j++) gray[j] = 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2];
 
   // Integraalbeeld voor snelle lokale gemiddelden.
-  const integral = new Float64Array((w + 1) * (h + 1));
+  const integral = new Uint32Array((w + 1) * (h + 1));
   for (let y = 0; y < h; y++) {
     let row = 0;
     for (let x = 0; x < w; x++) {
