@@ -41,7 +41,7 @@ export async function scanWithGemini(dataUrl: string): Promise<ScanOutcome> {
   try {
     const call = (model: string) => fetch(API(model), {
       method: "POST",
-      signal: AbortSignal.timeout(90_000),
+      signal: AbortSignal.timeout(60_000),
       headers: { "content-type": "application/json", "x-goog-api-key": key },
       body: JSON.stringify({
         contents: [{ parts: [{ inline_data: { mime_type: m[1], data: m[2] } }, { text: PROMPT }] }],
@@ -101,7 +101,10 @@ export async function scanWithGemini(dataUrl: string): Promise<ScanOutcome> {
       },
     };
   } catch (e) {
+    // "fetch failed" verbergt de echte reden in e.cause (ENOTFOUND = DNS, ETIMEDOUT/ENETUNREACH = geen route, ...).
+    const cause = (e as { cause?: { code?: string; message?: string } }).cause;
+    const detail = cause?.code ?? cause?.message ?? (e as Error).message;
     console.error("Gemini scan mislukt", e);
-    return { ok: false, reason: "error", message: (e as Error).message };
+    return { ok: false, reason: "error", message: `geen verbinding met Google: ${detail}` };
   }
 }
