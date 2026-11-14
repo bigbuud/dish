@@ -39,14 +39,16 @@ export async function scanWithGemini(dataUrl: string): Promise<ScanOutcome> {
   if (!m) return { ok: false, reason: "error", message: "Onbekend afbeeldingsformaat" };
 
   try {
-    const call = (model: string) => fetch(API(model), {
+    const call = (model: string, thinking: boolean) => fetch(API(model), {
       method: "POST",
-      signal: AbortSignal.timeout(60_000),
+      signal: AbortSignal.timeout(40_000),
       headers: { "content-type": "application/json", "x-goog-api-key": key },
       body: JSON.stringify({
         contents: [{ parts: [{ inline_data: { mime_type: m[1], data: m[2] } }, { text: PROMPT }] }],
         generationConfig: {
           temperature: 0.1,
+          // Lezen hoeft niet lang "na te denken": scheelt veel wachttijd. Sommige modellen kennen dit veld niet; dan proberen we zonder.
+          ...(thinking ? { thinkingConfig: { thinkingLevel: "low" } } : {}),
           responseMimeType: "application/json",
           responseSchema: {
             type: "OBJECT",
@@ -65,22 +67,47 @@ export async function scanWithGemini(dataUrl: string): Promise<ScanOutcome> {
       }),
     });
     let res: Response | undefined;
-    let lastStatus = 0;
-    // Twee rondes langs de modellen: bij 503 (Google overbelast), 500/502/504, 403/404 (model niet beschikbaar) of 429 (limiet) volgt het volgende model.
+    let lastStatus = 0; // 0 = geen antwoord (time-out of netwerkfout)
+    let lastError = "";
+    const started = Date.now();
+    // Per model: eerst met weinig "denkwerk"; kent het model dat niet (400), dan zonder. Bij 503/500/502/504, 403/404, 429 of een time-out volgt het volgende model.
+    // Tweede ronde (na 3 s) alleen als Google overbelast was (503) en er nog tijd is.
     for (let round = 0; round < 2 && !res?.ok; round++) {
-      if (round > 0) await new Promise((r) => setTimeout(r, 3000));
+      if (round > 0) {
+        if (lastStatus !== 503 || Date.now() - started > 60_000) break;
+        await new Promise((r) => setTimeout(r, 3000));
+      }
       for (const model of MODELS()) {
-        res = await call(model);
-        if (res.ok) break;
-        lastStatus = res.status;
-        const body = await res.text().catch(() => "");
-        console.error(`Gemini scan mislukt (${model})`, res.status, body.slice(0, 500));
-        if (![403, 404, 429, 500, 502, 503, 504].includes(res.status)) return { ok: false, reason: "error", message: `API-fout ${res.status}` };
+        let thinking = true;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            res = await call(model, thinking);
+            lastStatus = res.status;
+            lastError = "";
+          } catch (e) {
+            const cause = (e as { cause?: { code?: string; message?: string } }).cause;
+            lastStatus = 0;
+            lastError = cause?.code ?? cause?.message ?? (e as Error).message;
+            console.error(`Gemini scan mislukt (${model})`, e);
+            res = undefined;
+            break;
+          }
+          if (res.ok) break;
+          const body = await res.text().catch(() => "");
+          console.error(`Gemini scan mislukt (${model})`, res.status, body.slice(0, 500));
+          if (res.status === 400 && thinking) { thinking = false; continue; }
+          break;
+        }
+        if (res?.ok) break;
+        if (res && ![403, 404, 429, 500, 502, 503, 504].includes(res.status)) return { ok: false, reason: "error", message: `API-fout ${res.status}` };
       }
     }
     if (!res?.ok) {
       const message =
-        lastStatus === 429 ? "Daglimiet bereikt" : lastStatus === 503 ? "Google is overbelast, probeer zo opnieuw" : `API-fout ${lastStatus || "geen verbinding"}`;
+        lastStatus === 429 ? "Daglimiet bereikt"
+        : lastStatus === 503 ? "Google is overbelast, probeer zo opnieuw"
+        : lastStatus === 0 ? `geen antwoord van Google: ${lastError}`
+        : `API-fout ${lastStatus}`;
       return { ok: false, reason: "error", message };
     }
     const json = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
