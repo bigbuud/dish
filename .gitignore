@@ -1,6 +1,5 @@
 node_modules
 .output
-dist
 data
-.git
 public/tesseract
+.DS_Store

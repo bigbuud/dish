@@ -5,7 +5,7 @@ Recepten bewaren, opzoeken, porties omrekenen, kookmodus en recepten scannen met
 
 - **Stack:** TanStack Start (React 19) + Tailwind v4, Node-server via Nitro (`node-server`).
 - **Opslag:** één JSON-bestand `recipes.json` in `DATA_DIR` (standaard `./data`, in Docker `/data`).
-- **Scannen:** tesseract.js draait in de browser; worker, core en Nederlandse taaldata worden door Dish zelf geleverd (geen internet nodig).
+- **Scannen:** met `GEMINI_API_KEY` leest Google Gemini de foto (ook handschrift) en vult het hele recept in. Zonder sleutel, of als Gemini niet bereikbaar is, valt Dish terug op tesseract.js in de browser (alleen gedrukte tekst; worker, core en Nederlandse taaldata worden door Dish zelf geleverd, geen internet nodig).
 - **Beveiliging:** account met wachtwoord + 2-stapsverificatie (authenticator-app), zie hieronder.
 - **Installeerbaar:** web-manifest + service worker (vereist https, bv. via Tailscale Serve).
 

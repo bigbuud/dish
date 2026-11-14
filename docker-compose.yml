@@ -9,6 +9,9 @@ services:
       - "8086:3000"
     environment:
       - TZ=Europe/Brussels
+      # Slimme scan (handschrift!) via Google Gemini (gratis sleutel: https://aistudio.google.com/apikey). Zonder sleutel gebruikt Dish de gewone lokale OCR.
+      # - GEMINI_API_KEY=AIza...
+      # - GEMINI_MODEL=gemini-2.5-flash
       # - SESSION_DAYS=365   # hoe lang je ingelogd blijft (schuift mee bij gebruik)
     volumes:
       - ./data:/data

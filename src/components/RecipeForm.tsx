@@ -6,6 +6,7 @@ import { Camera, ImagePlus, Loader2, ScanText, X } from "lucide-react";
 import { toast } from "sonner";
 import { CATEGORIES, parseRecipeText, type CategoryId, type Recipe } from "@/lib/recipes";
 import { saveRecipe } from "@/lib/recipes.functions";
+import { scanRecipeImage } from "@/lib/scan.functions";
 import { compressImage, scanEnhance } from "@/lib/image";
 
 /** Maakt een element geschikt om een afbeelding op te slepen (pc). */
@@ -38,6 +39,7 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
   const [notes, setNotes] = useState(recipe?.notes ?? "");
   const [image, setImage] = useState<string | null>(recipe?.image ?? null);
   const [scanning, setScanning] = useState<number | null>(null);
+  const [scanMode, setScanMode] = useState<"ai" | "ocr">("ai");
   const [scanText, setScanText] = useState<string | null>(null);
   const scanCam = useRef<HTMLInputElement>(null);
   const scanFile = useRef<HTMLInputElement>(null);
@@ -58,6 +60,7 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
   const navigate = useNavigate();
   const qc = useQueryClient();
   const save = useServerFn(saveRecipe);
+  const scanAI = useServerFn(scanRecipeImage);
   const mutation = useMutation({
     mutationFn: () =>
       save({
@@ -80,7 +83,35 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
   async function handleScan(file?: File) {
     if (!file) return;
     setScanning(0);
+    setScanText(null);
     try {
+      // 1) Slimme scan via Gemini: leest ook handschrift en geeft meteen een net recept terug.
+      let aiFailed = false;
+      try {
+        setScanMode("ai");
+        const res = await scanAI({ data: { image: await compressImage(file, 2000) } });
+        if (res.ok) {
+          const r = res.recipe;
+          if (r.title) setTitle(r.title);
+          setCategory(r.category);
+          if (r.servings) setServings(String(r.servings));
+          if (r.prepMinutes) setPrep(String(r.prepMinutes));
+          setIngredients(r.ingredients.join("\n"));
+          setSteps(r.steps.join("\n"));
+          if (r.notes) setNotes(r.notes);
+          toast.success("Recept gelezen — controleer vooral woorden met [?]");
+          return;
+        }
+        aiFailed = res.reason === "error";
+      } catch (e) {
+        console.error(e);
+        aiFailed = true;
+      }
+      if (aiFailed) toast.message("Slimme scan niet bereikbaar — gewone tekstherkenning gebruikt");
+
+      // 2) Terugval: lokale OCR (tesseract), werkt offline maar leest geen handschrift.
+      setScanMode("ocr");
+      setScanning(0);
       const canvas = await scanEnhance(file);
       const { createWorker } = await import("tesseract.js");
       // Alles wordt door de eigen server geleverd (zie scripts/copy-ocr.mjs): scannen werkt zonder internet.
@@ -116,7 +147,7 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
         <section {...scanDrop.props} className={`card overflow-hidden transition ${scanDrop.over ? "bg-accent/40 outline-dashed outline-4 outline-offset-2 outline-foreground" : ""}`}>
           <div className="hero-band border-b-2 border-foreground px-6 py-4">
             <h2 className="flex items-center gap-2"><ScanText className="h-7 w-7" /> Scan een recept</h2>
-            <p className="mt-1">Fotografeer een kookboekpagina of briefje. De tekst wordt herkend en ingevuld — of typ hieronder zelf. <span className="hidden [@media(hover:hover)]:inline">Op de computer kun je een afbeelding ook op deze kaart slepen.</span></p>
+            <p className="mt-1">Fotografeer een kookboekpagina of briefje. De tekst wordt gelezen (ook handschrift) en ingevuld — of typ hieronder zelf. <span className="hidden [@media(hover:hover)]:inline">Op de computer kun je een afbeelding ook op deze kaart slepen.</span></p>
           </div>
           <div className="flex flex-wrap items-center gap-3 p-5">
             <input ref={scanCam} type="file" accept="image/*" capture="environment" hidden onChange={(e) => handleScan(e.target.files?.[0])} />
@@ -129,7 +160,7 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
             </button>
             {scanning !== null && (
               <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" /> Tekst herkennen… {scanning}%
+                <Loader2 className="h-4 w-4 animate-spin" /> {scanMode === "ai" ? "Recept lezen…" : `Tekst herkennen… ${scanning}%`}
               </span>
             )}
           </div>
