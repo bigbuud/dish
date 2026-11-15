@@ -76,7 +76,7 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
           prepMinutes: prep ? Number(prep) : null,
           ingredients: ingredients.split("\n").map((l) => l.trim()).filter(Boolean),
           steps: steps.split("\n").map((l) => l.trim()).filter(Boolean),
-          notes, glutenFree, image,
+          notes, glutenFree, needsReview: false, image,
         },
       }),
     onSuccess: async (r) => {

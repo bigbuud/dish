@@ -45,7 +45,7 @@ function Detail() {
   const del = useServerFn(deleteRecipe);
 
   const metaMut = useMutation({
-    mutationFn: (d: { favorite?: boolean; rating?: number }) => meta({ data: { id, ...d } }),
+    mutationFn: (d: { favorite?: boolean; rating?: number; needsReview?: boolean }) => meta({ data: { id, ...d } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["recipes"] }),
   });
   const delMut = useMutation({
@@ -89,6 +89,12 @@ function Detail() {
         <div>
           <span className="wobbly-sm inline-block border-2 border-foreground bg-accent px-3 font-display text-xl font-bold">{categoryLabel(r.category)}</span>
           {r.glutenFree && <span className="wobbly-sm ml-2 inline-flex items-center gap-1 border-2 border-foreground bg-card px-3 font-display text-xl font-bold"><WheatOff className="h-4 w-4" /> Glutenvrij</span>}
+          {r.needsReview && (
+            <div className="card mt-3 flex flex-wrap items-center gap-3 bg-accent/60 px-4 py-3 print:hidden">
+              <span className="flex-1">Dit recept is automatisch ingelezen. Lees het even na, vooral de hoeveelheden.</span>
+              <button className="btn-primary px-4 py-1" onClick={() => metaMut.mutate({ needsReview: false })}>Gecontroleerd</button>
+            </div>
+          )}
           <h1 className="mt-3">{r.title}</h1>
           <div className="mt-4 flex flex-wrap items-center gap-4 text-muted-foreground">
             {r.prepMinutes ? <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" />{r.prepMinutes} min</span> : null}

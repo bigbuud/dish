@@ -42,7 +42,7 @@ export const saveRecipe = createServerFn({ method: "POST" })
 
 export const updateRecipeMeta = createServerFn({ method: "POST" })
   .middleware([requireAuth])
-  .inputValidator(z.object({ id: z.string(), favorite: z.boolean().optional(), rating: z.number().int().min(0).max(5).optional() }))
+  .inputValidator(z.object({ id: z.string(), favorite: z.boolean().optional(), needsReview: z.boolean().optional(), rating: z.number().int().min(0).max(5).optional() }))
   .handler(async ({ data }) => {
     const { mutateRecipes } = await store();
     return mutateRecipes((all) => {
@@ -50,6 +50,7 @@ export const updateRecipeMeta = createServerFn({ method: "POST" })
       if (!r) throw new Error("Recept niet gevonden");
       if (data.favorite !== undefined) r.favorite = data.favorite;
       if (data.rating !== undefined) r.rating = data.rating;
+      if (data.needsReview !== undefined) r.needsReview = data.needsReview;
       return r;
     });
   });
