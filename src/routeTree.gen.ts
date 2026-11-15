@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ImporterenRouteImport } from './routes/importeren'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
+import { Route as ApiBackupRouteImport } from './routes/api/backup'
 import { Route as ReceptenNieuwRouteImport } from './routes/recepten/nieuw'
 import { Route as ReceptenIdIndexRouteImport } from './routes/recepten/$id.index'
 import { Route as ReceptenIdEditRouteImport } from './routes/recepten/$id.edit'
@@ -37,6 +38,11 @@ const SetupRoute = SetupRouteImport.update({
   path: '/setup',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiBackupRoute = ApiBackupRouteImport.update({
+  id: '/api/backup',
+  path: '/api/backup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReceptenNieuwRoute = ReceptenNieuwRouteImport.update({
   id: '/recepten/nieuw',
   path: '/recepten/nieuw',
@@ -58,6 +64,7 @@ export interface FileRoutesByFullPath {
   '/importeren': typeof ImporterenRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/api/backup': typeof ApiBackupRoute
   '/recepten/nieuw': typeof ReceptenNieuwRoute
   '/recepten/$id/edit': typeof ReceptenIdEditRoute
   '/recepten/$id/': typeof ReceptenIdIndexRoute
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/importeren': typeof ImporterenRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/api/backup': typeof ApiBackupRoute
   '/recepten/nieuw': typeof ReceptenNieuwRoute
   '/recepten/$id/edit': typeof ReceptenIdEditRoute
   '/recepten/$id': typeof ReceptenIdIndexRoute
@@ -77,6 +85,7 @@ export interface FileRoutesById {
   '/importeren': typeof ImporterenRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/api/backup': typeof ApiBackupRoute
   '/recepten/nieuw': typeof ReceptenNieuwRoute
   '/recepten/$id/edit': typeof ReceptenIdEditRoute
   '/recepten/$id/': typeof ReceptenIdIndexRoute
@@ -88,6 +97,7 @@ export interface FileRouteTypes {
     | '/importeren'
     | '/login'
     | '/setup'
+    | '/api/backup'
     | '/recepten/nieuw'
     | '/recepten/$id/edit'
     | '/recepten/$id/'
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/importeren'
     | '/login'
     | '/setup'
+    | '/api/backup'
     | '/recepten/nieuw'
     | '/recepten/$id/edit'
     | '/recepten/$id'
@@ -106,6 +117,7 @@ export interface FileRouteTypes {
     | '/importeren'
     | '/login'
     | '/setup'
+    | '/api/backup'
     | '/recepten/nieuw'
     | '/recepten/$id/edit'
     | '/recepten/$id/'
@@ -116,6 +128,7 @@ export interface RootRouteChildren {
   ImporterenRoute: typeof ImporterenRoute
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
+  ApiBackupRoute: typeof ApiBackupRoute
   ReceptenNieuwRoute: typeof ReceptenNieuwRoute
   ReceptenIdEditRoute: typeof ReceptenIdEditRoute
   ReceptenIdIndexRoute: typeof ReceptenIdIndexRoute
@@ -151,6 +164,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SetupRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/backup': {
+      id: '/api/backup'
+      path: '/api/backup'
+      fullPath: '/api/backup'
+      preLoaderRoute: typeof ApiBackupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/recepten/nieuw': {
       id: '/recepten/nieuw'
       path: '/recepten/nieuw'
@@ -180,6 +200,7 @@ const rootRouteChildren: RootRouteChildren = {
   ImporterenRoute: ImporterenRoute,
   LoginRoute: LoginRoute,
   SetupRoute: SetupRoute,
+  ApiBackupRoute: ApiBackupRoute,
   ReceptenNieuwRoute: ReceptenNieuwRoute,
   ReceptenIdEditRoute: ReceptenIdEditRoute,
   ReceptenIdIndexRoute: ReceptenIdIndexRoute,

@@ -17,6 +17,8 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+  // Downloads (back-up-zip) nooit in de cache bewaren of uit de cache serveren.
+  if (url.pathname.startsWith("/api/")) return;
 
   event.respondWith(
     fetch(req)
