@@ -12,7 +12,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import { Toaster } from "sonner";
-import { FolderInput, LogOut, Plus } from "lucide-react";
+import { FolderInput, HardDriveDownload, LogOut, Plus } from "lucide-react";
 import appCss from "../styles.css?url";
 import { Logo } from "../components/Logo";
 import { getAuthStatus, logout } from "../lib/auth.functions";
@@ -149,6 +149,9 @@ function RootComponent() {
               <Link to="/importeren" className="btn-ghost px-2" title="Recepten importeren" aria-label="Recepten importeren">
                 <FolderInput className="h-5 w-5" />
               </Link>
+              <a href="/api/backup" download className="btn-ghost px-2" title="Back-up downloaden (pdf per recept)" aria-label="Back-up downloaden">
+                <HardDriveDownload className="h-5 w-5" />
+              </a>
               <button onClick={doLogout} className="btn-ghost px-2" title="Uitloggen" aria-label="Uitloggen">
                 <LogOut className="h-5 w-5" />
               </button>
