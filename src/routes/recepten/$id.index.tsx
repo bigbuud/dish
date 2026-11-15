@@ -2,7 +2,7 @@ import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-ro
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { ArrowLeft, ChefHat, Clock, Copy, Heart, Mail, Minus, MessageCircle, Pencil, Plus, Printer, Share2, Trash2 } from "lucide-react";
+import { ArrowLeft, ChefHat, Clock, Copy, Heart, Mail, Minus, MessageCircle, Pencil, Plus, Printer, Share2, Trash2, WheatOff } from "lucide-react";
 import { toast } from "sonner";
 import { categoryLabel, scaleIngredient } from "@/lib/recipes";
 import { deleteRecipe, recipeQuery, updateRecipeMeta } from "@/lib/recipes.functions";
@@ -88,6 +88,7 @@ function Detail() {
       <div className="grid gap-8 md:grid-cols-[1.1fr_1fr]">
         <div>
           <span className="wobbly-sm inline-block border-2 border-foreground bg-accent px-3 font-display text-xl font-bold">{categoryLabel(r.category)}</span>
+          {r.glutenFree && <span className="wobbly-sm ml-2 inline-flex items-center gap-1 border-2 border-foreground bg-card px-3 font-display text-xl font-bold"><WheatOff className="h-4 w-4" /> Glutenvrij</span>}
           <h1 className="mt-3">{r.title}</h1>
           <div className="mt-4 flex flex-wrap items-center gap-4 text-muted-foreground">
             {r.prepMinutes ? <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" />{r.prepMinutes} min</span> : null}

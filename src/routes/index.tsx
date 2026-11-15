@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { BookOpen, Clock, Heart, Search, Users } from "lucide-react";
+import { BookOpen, Clock, Heart, Search, Users, WheatOff } from "lucide-react";
 import { CATEGORIES, categoryLabel } from "@/lib/recipes";
 import { recipesQuery } from "@/lib/recipes.functions";
 import { Stars } from "@/components/Stars";
@@ -24,6 +24,7 @@ function Index() {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string>("alle");
   const [favOnly, setFavOnly] = useState(false);
+  const [gfOnly, setGfOnly] = useState(false);
   const [sort, setSort] = useState<Sort>("nieuw");
 
   const filtered = useMemo(() => {
@@ -31,11 +32,12 @@ function Index() {
     return recipes
       .filter((r) => cat === "alle" || r.category === cat)
       .filter((r) => !favOnly || r.favorite)
+      .filter((r) => !gfOnly || r.glutenFree)
       .filter((r) => !term || r.title.toLowerCase().includes(term) || r.ingredients.some((i) => i.toLowerCase().includes(term)) || r.notes.toLowerCase().includes(term))
       .sort((a, b) =>
         sort === "az" ? a.title.localeCompare(b.title, "nl") : sort === "rating" ? b.rating - a.rating : b.createdAt.localeCompare(a.createdAt),
       );
-  }, [recipes, q, cat, favOnly, sort]);
+  }, [recipes, q, cat, favOnly, gfOnly, sort]);
 
   const count = (id: string) => recipes.filter((r) => r.category === id).length;
 
@@ -64,6 +66,9 @@ function Index() {
         <button className={`chip flex items-center gap-1.5 ${favOnly ? "chip-active" : ""}`} onClick={() => setFavOnly(!favOnly)}>
           <Heart className={`h-4 w-4 ${favOnly ? "fill-current" : ""}`} /> Favorieten
         </button>
+        <button className={`chip flex items-center gap-1.5 ${gfOnly ? "chip-active" : ""}`} onClick={() => setGfOnly(!gfOnly)}>
+          <WheatOff className="h-4 w-4" /> Glutenvrij ({recipes.filter((r) => r.glutenFree).length})
+        </button>
       </div>
 
       {filtered.length === 0 ? (
@@ -84,6 +89,7 @@ function Index() {
                   <div className="flex h-full items-center justify-center bg-secondary font-display text-8xl text-foreground/70">{r.title.charAt(0).toUpperCase()}</div>
                 )}
                 <span className="absolute left-3 top-3 wobbly-sm border-2 border-foreground bg-accent px-2.5 py-0.5 font-display text-lg font-bold leading-tight">{categoryLabel(r.category)}</span>
+                {r.glutenFree && <span className="absolute bottom-3 left-3 wobbly-sm flex items-center gap-1 border-2 border-foreground bg-card px-2 py-0.5 font-display text-lg font-bold leading-tight"><WheatOff className="h-4 w-4" /> Glutenvrij</span>}
                 {r.favorite && <Heart className="absolute right-3 top-3 h-7 w-7 fill-destructive text-destructive drop-shadow" />}
               </div>
               <div className="p-4">

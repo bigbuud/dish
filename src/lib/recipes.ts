@@ -24,6 +24,8 @@ export const recipeInputSchema = z.object({
   ingredients: z.array(z.string().trim().min(1).max(500)).max(200),
   steps: z.array(z.string().trim().min(1).max(5000)).max(200),
   notes: z.string().max(10000),
+  /** Door de gebruiker bevestigd als glutenvrij. Oudere recepten hebben dit veld niet: dat telt als "niet bevestigd". */
+  glutenFree: z.boolean().default(false),
   image: z.string().max(8_000_000).nullable(),
 });
 
