@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ImporterenRouteImport } from './routes/importeren'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as ReceptenNieuwRouteImport } from './routes/recepten/nieuw'
@@ -19,6 +20,11 @@ import { Route as ReceptenIdEditRouteImport } from './routes/recepten/$id.edit'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImporterenRoute = ImporterenRouteImport.update({
+  id: '/importeren',
+  path: '/importeren',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -49,6 +55,7 @@ const ReceptenIdEditRoute = ReceptenIdEditRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/importeren': typeof ImporterenRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/recepten/nieuw': typeof ReceptenNieuwRoute
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/importeren': typeof ImporterenRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/recepten/nieuw': typeof ReceptenNieuwRoute
@@ -66,6 +74,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/importeren': typeof ImporterenRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/recepten/nieuw': typeof ReceptenNieuwRoute
@@ -76,6 +85,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/importeren'
     | '/login'
     | '/setup'
     | '/recepten/nieuw'
@@ -84,6 +94,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/importeren'
     | '/login'
     | '/setup'
     | '/recepten/nieuw'
@@ -92,6 +103,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/importeren'
     | '/login'
     | '/setup'
     | '/recepten/nieuw'
@@ -101,6 +113,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ImporterenRoute: typeof ImporterenRoute
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
   ReceptenNieuwRoute: typeof ReceptenNieuwRoute
@@ -115,6 +128,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/importeren': {
+      id: '/importeren'
+      path: '/importeren'
+      fullPath: '/importeren'
+      preLoaderRoute: typeof ImporterenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -157,6 +177,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ImporterenRoute: ImporterenRoute,
   LoginRoute: LoginRoute,
   SetupRoute: SetupRoute,
   ReceptenNieuwRoute: ReceptenNieuwRoute,

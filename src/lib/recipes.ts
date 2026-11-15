@@ -26,6 +26,8 @@ export const recipeInputSchema = z.object({
   notes: z.string().max(10000),
   /** Door de gebruiker bevestigd als glutenvrij. Oudere recepten hebben dit veld niet: dat telt als "niet bevestigd". */
   glutenFree: z.boolean().default(false),
+  /** Door de importfunctie aangemaakt en nog niet nagekeken. Bewaren via het formulier of "Gecontroleerd" haalt het weg. */
+  needsReview: z.boolean().default(false),
   image: z.string().max(8_000_000).nullable(),
 });
 

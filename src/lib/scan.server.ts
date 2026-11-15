@@ -8,7 +8,7 @@ const MODELS = () =>
     .split(",").map((m) => m.trim()).filter(Boolean);
 const API = (model: string) => `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
-const PROMPT = `Dit is een foto van een recept: een kookboekpagina, een uitgeprinte pagina, een handgeschreven briefje of een schrift. De tekst is meestal Nederlands (Vlaams).
+export const PROMPT = `Dit is een foto van een recept: een kookboekpagina, een uitgeprinte pagina, een handgeschreven briefje of een schrift. De tekst is meestal Nederlands (Vlaams).
 Lees de volledige tekst en zet het om naar een net recept in het gevraagde JSON-formaat.
 Regels:
 - Schrijf de tekst zoals hij er staat, maar verbeter duidelijke leesfouten en spelling. Verzin niets bij.
@@ -38,12 +38,38 @@ export type ScanOutcome =
   | { ok: true; recipe: ScanResult }
   | { ok: false; reason: "no-key" | "error"; message?: string };
 
-export async function scanWithGemini(dataUrl: string): Promise<ScanOutcome> {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) return { ok: false, reason: "no-key" };
+/** Onderdelen van een Gemini-bericht: een bestand (base64) of tekst. */
+export type GeminiPart = { inline_data: { mime_type: string; data: string } } | { text: string };
 
-  const m = dataUrl.match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/);
-  if (!m) return { ok: false, reason: "error", message: "Onbekend afbeeldingsformaat" };
+export type GeminiOutcome =
+  | { ok: true; text: string }
+  // limit = 429 (limiet bereikt), busy = Google overbelast of geen antwoord: beide zijn het waard om later opnieuw te proberen.
+  | { ok: false; reason: "no-key" | "limit" | "busy" | "error"; message: string };
+
+const RECIPE_PROPERTIES = {
+  titel: { type: "STRING" },
+  categorie: { type: "STRING", enum: [...CATEGORY_IDS] },
+  personen: { type: "INTEGER", nullable: true },
+  bereidingstijd_minuten: { type: "INTEGER", nullable: true },
+  ingredienten: { type: "ARRAY", items: { type: "STRING" } },
+  bereiding: { type: "ARRAY", items: { type: "STRING" } },
+  notities: { type: "STRING" },
+  glutenvrij_voorstel: { type: "BOOLEAN" },
+  gluten_reden: { type: "STRING" },
+};
+const RECIPE_REQUIRED = ["titel", "categorie", "ingredienten", "bereiding"];
+
+export const RECIPE_SCHEMA = { type: "OBJECT", properties: RECIPE_PROPERTIES, required: RECIPE_REQUIRED };
+export const RECIPES_SCHEMA = {
+  type: "OBJECT",
+  properties: { recepten: { type: "ARRAY", items: RECIPE_SCHEMA } },
+  required: ["recepten"],
+};
+
+/** Vraagt Gemini om JSON volgens `schema`. Probeert de modellen één voor één en wacht bij overbelasting (zie de opmerkingen hieronder). */
+export async function generateJson(parts: GeminiPart[], schema: object): Promise<GeminiOutcome> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return { ok: false, reason: "no-key", message: "Geen Gemini-sleutel" };
 
   try {
     const call = (model: string, thinking: boolean) => fetch(API(model), {
@@ -51,27 +77,13 @@ export async function scanWithGemini(dataUrl: string): Promise<ScanOutcome> {
       signal: AbortSignal.timeout(40_000),
       headers: { "content-type": "application/json", "x-goog-api-key": key },
       body: JSON.stringify({
-        contents: [{ parts: [{ inline_data: { mime_type: m[1], data: m[2] } }, { text: PROMPT }] }],
+        contents: [{ parts }],
         generationConfig: {
           temperature: 0.1,
           // Lezen hoeft niet lang "na te denken": scheelt veel wachttijd. Sommige modellen kennen dit veld niet; dan proberen we zonder.
           ...(thinking ? { thinkingConfig: { thinkingLevel: "low" } } : {}),
           responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              titel: { type: "STRING" },
-              categorie: { type: "STRING", enum: [...CATEGORY_IDS] },
-              personen: { type: "INTEGER", nullable: true },
-              bereidingstijd_minuten: { type: "INTEGER", nullable: true },
-              ingredienten: { type: "ARRAY", items: { type: "STRING" } },
-              bereiding: { type: "ARRAY", items: { type: "STRING" } },
-              notities: { type: "STRING" },
-              glutenvrij_voorstel: { type: "BOOLEAN" },
-              gluten_reden: { type: "STRING" },
-            },
-            required: ["titel", "categorie", "ingredienten", "bereiding"],
-          },
+          responseSchema: schema,
         },
       }),
     });
@@ -117,37 +129,52 @@ export async function scanWithGemini(dataUrl: string): Promise<ScanOutcome> {
         : lastStatus === 503 ? "Google is overbelast, probeer zo opnieuw"
         : lastStatus === 0 ? `geen antwoord van Google: ${lastError}`
         : `API-fout ${lastStatus}`;
-      return { ok: false, reason: "error", message };
+      const reason = lastStatus === 429 ? "limit" : lastStatus === 503 || lastStatus === 0 ? "busy" : "error";
+      return { ok: false, reason, message };
     }
     const json = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
     const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("");
     if (!text) return { ok: false, reason: "error", message: "Geen antwoord" };
-    const r = JSON.parse(text) as Record<string, unknown>;
-
-    const list = (v: unknown) => (Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean) : []);
-    const num = (v: unknown, max: number) => {
-      const n = Math.round(Number(v));
-      return v != null && Number.isFinite(n) && n > 0 ? Math.min(n, max) : null;
-    };
-    return {
-      ok: true,
-      recipe: {
-        title: String(r.titel ?? "").trim().slice(0, 200),
-        category: CATEGORY_IDS.find((c) => c === r.categorie) ?? "hoofdgerecht",
-        servings: num(r.personen, 100),
-        prepMinutes: num(r.bereidingstijd_minuten, 10000),
-        ingredients: list(r.ingredienten),
-        steps: list(r.bereiding),
-        notes: String(r.notities ?? "").trim(),
-        glutenFreeSuggestion: r.glutenvrij_voorstel === true,
-        glutenReason: String(r.gluten_reden ?? "").trim().slice(0, 300),
-      },
-    };
+    return { ok: true, text };
   } catch (e) {
     // "fetch failed" verbergt de echte reden in e.cause (ENOTFOUND = DNS, ETIMEDOUT/ENETUNREACH = geen route, ...).
     const cause = (e as { cause?: { code?: string; message?: string } }).cause;
     const detail = cause?.code ?? cause?.message ?? (e as Error).message;
     console.error("Gemini scan mislukt", e);
-    return { ok: false, reason: "error", message: `geen verbinding met Google: ${detail}` };
+    return { ok: false, reason: "busy", message: `geen verbinding met Google: ${detail}` };
+  }
+}
+
+/** Zet één recept-object uit Gemini om naar een veilig ScanResult. */
+export function toScanResult(r: Record<string, unknown>): ScanResult {
+  const list = (v: unknown) => (Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean) : []);
+  const num = (v: unknown, max: number) => {
+    const n = Math.round(Number(v));
+    return v != null && Number.isFinite(n) && n > 0 ? Math.min(n, max) : null;
+  };
+  return {
+    title: String(r.titel ?? "").trim().slice(0, 200),
+    category: CATEGORY_IDS.find((c) => c === r.categorie) ?? "hoofdgerecht",
+    servings: num(r.personen, 100),
+    prepMinutes: num(r.bereidingstijd_minuten, 10000),
+    ingredients: list(r.ingredienten),
+    steps: list(r.bereiding),
+    notes: String(r.notities ?? "").trim(),
+    glutenFreeSuggestion: r.glutenvrij_voorstel === true,
+    glutenReason: String(r.gluten_reden ?? "").trim().slice(0, 300),
+  };
+}
+
+export async function scanWithGemini(dataUrl: string): Promise<ScanOutcome> {
+  const m = dataUrl.match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/);
+  if (!process.env.GEMINI_API_KEY) return { ok: false, reason: "no-key" };
+  if (!m) return { ok: false, reason: "error", message: "Onbekend afbeeldingsformaat" };
+
+  const out = await generateJson([{ inline_data: { mime_type: m[1], data: m[2] } }, { text: PROMPT }], RECIPE_SCHEMA);
+  if (!out.ok) return { ok: false, reason: out.reason === "no-key" ? "no-key" : "error", message: out.message };
+  try {
+    return { ok: true, recipe: toScanResult(JSON.parse(out.text) as Record<string, unknown>) };
+  } catch {
+    return { ok: false, reason: "error", message: "Antwoord van Gemini was onleesbaar" };
   }
 }

@@ -12,7 +12,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import { Toaster } from "sonner";
-import { LogOut, Plus } from "lucide-react";
+import { FolderInput, LogOut, Plus } from "lucide-react";
 import appCss from "../styles.css?url";
 import { Logo } from "../components/Logo";
 import { getAuthStatus, logout } from "../lib/auth.functions";
@@ -145,6 +145,9 @@ function RootComponent() {
                 <Plus className="h-5 w-5" />
                 <span className="hidden sm:inline">Nieuw recept</span>
                 <span className="sm:hidden">Nieuw</span>
+              </Link>
+              <Link to="/importeren" className="btn-ghost px-2" title="Recepten importeren" aria-label="Recepten importeren">
+                <FolderInput className="h-5 w-5" />
               </Link>
               <button onClick={doLogout} className="btn-ghost px-2" title="Uitloggen" aria-label="Uitloggen">
                 <LogOut className="h-5 w-5" />
