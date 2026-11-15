@@ -9,10 +9,10 @@ import {
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
-import { Toaster } from "sonner";
-import { FolderInput, HardDriveDownload, LogOut, Plus } from "lucide-react";
+import { Toaster, toast } from "sonner";
+import { FolderInput, HardDriveDownload, Loader2, LogOut, Plus } from "lucide-react";
 import appCss from "../styles.css?url";
 import { Logo } from "../components/Logo";
 import { getAuthStatus, logout } from "../lib/auth.functions";
@@ -114,6 +114,33 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient, authed } = Route.useRouteContext();
 
+  const [backingUp, setBackingUp] = useState(false);
+
+  /** Haalt de back-up-zip op met zichtbare voortgang (maken duurt bij veel recepten met foto's even). */
+  async function downloadBackup() {
+    if (backingUp) return;
+    setBackingUp(true);
+    const id = toast.loading("Back-up wordt gemaakt… dit kan even duren, je hoeft niet opnieuw te klikken.", { duration: Infinity });
+    try {
+      const res = await fetch("/api/backup", { cache: "no-store" });
+      if (!res.ok) throw new Error(res.status === 401 ? "Je bent uitgelogd" : `Fout ${res.status}`);
+      const name = res.headers.get("content-disposition")?.match(/filename="([^"]+)"/)?.[1] ?? "dish-backup.zip";
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      toast.success(`Back-up klaar: ${name}. Kijk in je map Downloads.`, { id, duration: 10_000 });
+    } catch (e) {
+      toast.error(`Back-up mislukt: ${(e as Error).message}`, { id, duration: 10_000 });
+    } finally {
+      setBackingUp(false);
+    }
+  }
+
   async function doLogout() {
     try {
       await logout();
@@ -149,9 +176,15 @@ function RootComponent() {
               <Link to="/importeren" className="btn-ghost px-2" title="Recepten importeren" aria-label="Recepten importeren">
                 <FolderInput className="h-5 w-5" />
               </Link>
-              <a href="/api/backup" download className="btn-ghost px-2" title="Back-up downloaden (pdf per recept)" aria-label="Back-up downloaden">
-                <HardDriveDownload className="h-5 w-5" />
-              </a>
+              <button
+                onClick={downloadBackup}
+                disabled={backingUp}
+                className="btn-ghost px-2 disabled:opacity-60"
+                title="Back-up downloaden (pdf per recept)"
+                aria-label="Back-up downloaden"
+              >
+                {backingUp ? <Loader2 className="h-5 w-5 animate-spin" /> : <HardDriveDownload className="h-5 w-5" />}
+              </button>
               <button onClick={doLogout} className="btn-ghost px-2" title="Uitloggen" aria-label="Uitloggen">
                 <LogOut className="h-5 w-5" />
               </button>
