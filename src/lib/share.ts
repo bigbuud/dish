@@ -2,7 +2,7 @@ import { categoryLabel, type Recipe } from "./recipes";
 
 /** Zet een recept om naar gewone tekst voor WhatsApp, mail, klembord, ... */
 export function recipeToText(r: Recipe, ingredients: string[], servings: number): string {
-  const meta = [categoryLabel(r.category), `${servings} ${servings === 1 ? "persoon" : "personen"}`, r.prepMinutes ? `${r.prepMinutes} min` : null]
+  const meta = [categoryLabel(r.category), r.glutenFree ? "glutenvrij" : null, `${servings} ${servings === 1 ? "persoon" : "personen"}`, r.prepMinutes ? `${r.prepMinutes} min` : null]
     .filter(Boolean)
     .join(" · ");
   const parts = [r.title, meta, "", "Ingrediënten", ...ingredients.map((i) => `- ${i}`)];

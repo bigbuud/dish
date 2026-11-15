@@ -17,6 +17,8 @@ Regels:
 - Staat er een oventemperatuur, tip of opmerking, zet die in "notities".
 - Is een woord echt onleesbaar, schrijf dan je beste gok gevolgd door [?].
 - Staat het aantal personen of de bereidingstijd er niet bij, laat die dan leeg (null).
+- "glutenvrij_voorstel": zet alleen true als je zeker bent dat ELK ingrediënt glutenvrij is. Gluten zit in tarwe, rogge, gerst, spelt, bloem, broodkruim, pasta, couscous, bier, sojasaus, worst en gehakt met vulling. Bij twijfel (bouillonblokjes, sauzen, kruidenmengsels, haver, kant-en-klare producten) zet je false. Wees streng: een foutieve true is erger dan een foutieve false.
+- "gluten_reden": noem kort de ingrediënten die gluten bevatten of waarover twijfel bestaat (bv. "bloem, bouillonblokjes"). Leeg als er niets verdacht is.
 - "categorie": kies de best passende soort. Gebruik "overige" voor hummus, dips, sauzen, hapjes, snacks en alles wat niet in de andere soorten past.`;
 
 export type ScanResult = {
@@ -27,6 +29,9 @@ export type ScanResult = {
   ingredients: string[];
   steps: string[];
   notes: string;
+  /** Alleen een voorstel van Gemini; de gebruiker beslist. */
+  glutenFreeSuggestion: boolean;
+  glutenReason: string;
 };
 
 export type ScanOutcome =
@@ -62,6 +67,8 @@ export async function scanWithGemini(dataUrl: string): Promise<ScanOutcome> {
               ingredienten: { type: "ARRAY", items: { type: "STRING" } },
               bereiding: { type: "ARRAY", items: { type: "STRING" } },
               notities: { type: "STRING" },
+              glutenvrij_voorstel: { type: "BOOLEAN" },
+              gluten_reden: { type: "STRING" },
             },
             required: ["titel", "categorie", "ingredienten", "bereiding"],
           },
@@ -132,6 +139,8 @@ export async function scanWithGemini(dataUrl: string): Promise<ScanOutcome> {
         ingredients: list(r.ingredienten),
         steps: list(r.bereiding),
         notes: String(r.notities ?? "").trim(),
+        glutenFreeSuggestion: r.glutenvrij_voorstel === true,
+        glutenReason: String(r.gluten_reden ?? "").trim().slice(0, 300),
       },
     };
   } catch (e) {

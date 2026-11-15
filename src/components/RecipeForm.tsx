@@ -2,7 +2,7 @@ import { useRef, useState, type DragEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Camera, ImagePlus, Loader2, Pencil, ScanText, X } from "lucide-react";
+import { Camera, ImagePlus, Loader2, Pencil, ScanText, WheatOff, X } from "lucide-react";
 import { toast } from "sonner";
 import { CATEGORIES, parseRecipeText, type CategoryId, type Recipe } from "@/lib/recipes";
 import { saveRecipe } from "@/lib/recipes.functions";
@@ -38,6 +38,9 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
   const [ingredients, setIngredients] = useState(recipe?.ingredients.join("\n") ?? "");
   const [steps, setSteps] = useState(recipe?.steps.join("\n") ?? "");
   const [notes, setNotes] = useState(recipe?.notes ?? "");
+  const [glutenFree, setGlutenFree] = useState(recipe?.glutenFree ?? false);
+  // Voorstel van Gemini na een scan; de vlag zelf zet alleen de gebruiker.
+  const [glutenHint, setGlutenHint] = useState<{ free: boolean; reason: string } | null>(null);
   const [image, setImage] = useState<string | null>(recipe?.image ?? null);
   const [scanning, setScanning] = useState<number | null>(null);
   const [scanMode, setScanMode] = useState<"ai" | "ocr">("ai");
@@ -73,7 +76,7 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
           prepMinutes: prep ? Number(prep) : null,
           ingredients: ingredients.split("\n").map((l) => l.trim()).filter(Boolean),
           steps: steps.split("\n").map((l) => l.trim()).filter(Boolean),
-          notes, image,
+          notes, glutenFree, image,
         },
       }),
     onSuccess: async (r) => {
@@ -107,6 +110,8 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
           setIngredients(r.ingredients.join("\n"));
           setSteps(r.steps.join("\n"));
           if (r.notes) setNotes(r.notes);
+          setGlutenHint({ free: r.glutenFreeSuggestion, reason: r.glutenReason });
+          setGlutenFree(false);
           toast.success("Recept gelezen — controleer vooral woorden met [?]");
           return;
         }
@@ -207,6 +212,20 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
                 </button>
               ))}
             </div>
+          </div>
+          <div>
+            <label className={`chip inline-flex cursor-pointer items-center gap-2 ${glutenFree ? "chip-active" : ""}`}>
+              <input type="checkbox" className="h-4 w-4 accent-primary" checked={glutenFree} onChange={(e) => setGlutenFree(e.target.checked)} />
+              <WheatOff className="h-4 w-4" /> Glutenvrij
+            </label>
+            {glutenHint && (
+              <p className="mt-1 text-base text-muted-foreground">
+                {glutenHint.free
+                  ? "Gemini denkt dat dit glutenvrij is. Vink het pas aan als je het zeker weet."
+                  : `Gemini vond mogelijk gluten${glutenHint.reason ? `: ${glutenHint.reason}` : ""}.`}
+              </p>
+            )}
+            {glutenFree && <p className="mt-1 text-base text-muted-foreground">Controleer ook de etiketten van bouillon, sauzen en kruidenmengsels.</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
