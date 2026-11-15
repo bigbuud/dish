@@ -1,9 +1,10 @@
 function loadImage(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
     const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = URL.createObjectURL(file);
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+    img.src = url;
   });
 }
 
@@ -63,4 +64,61 @@ export async function scanEnhance(file: File): Promise<HTMLCanvasElement> {
   }
   ctx.putImageData(d, 0, 0);
   return c;
+}
+
+/** Leest een foto in op een canvas, rechtgezet volgens de EXIF-stand van de camera en maximaal `max` px lang. */
+export async function decodePhoto(file: File, max = 2000): Promise<HTMLCanvasElement> {
+  let src: ImageBitmap | HTMLImageElement;
+  try {
+    src = await createImageBitmap(file, { imageOrientation: "from-image" });
+  } catch {
+    src = await loadImage(file); // moderne browsers passen de EXIF-stand hier ook zelf toe
+  }
+  const scale = Math.min(1, max / Math.max(src.width, src.height));
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(src.width * scale));
+  c.height = Math.max(1, Math.round(src.height * scale));
+  c.getContext("2d")!.drawImage(src, 0, 0, c.width, c.height);
+  if ("close" in src) src.close();
+  return c;
+}
+
+/** Draait een canvas een kwartslag. */
+export function rotateCanvas(src: HTMLCanvasElement, clockwise: boolean): HTMLCanvasElement {
+  const c = document.createElement("canvas");
+  c.width = src.height;
+  c.height = src.width;
+  const ctx = c.getContext("2d")!;
+  ctx.translate(c.width / 2, c.height / 2);
+  ctx.rotate((clockwise ? 1 : -1) * Math.PI / 2);
+  ctx.drawImage(src, -src.width / 2, -src.height / 2);
+  return c;
+}
+
+export type CropRect = { x: number; y: number; w: number; h: number }; // fracties van de afbeelding (0..1)
+
+/** Snijdt bij en past helderheid/contrast toe (-50..50 / -50..100, zoals de sliders); levert een JPEG-bestand. */
+export function exportEdited(src: HTMLCanvasElement, crop: CropRect, brightness: number, contrast: number): Promise<File> {
+  const sx = Math.round(crop.x * src.width), sy = Math.round(crop.y * src.height);
+  const sw = Math.max(1, Math.round(crop.w * src.width)), sh = Math.max(1, Math.round(crop.h * src.height));
+  const c = document.createElement("canvas");
+  c.width = sw;
+  c.height = sh;
+  const ctx = c.getContext("2d")!;
+  ctx.drawImage(src, sx, sy, sw, sh, 0, 0, sw, sh);
+  if (brightness !== 0 || contrast !== 0) {
+    const b = 1 + brightness / 100, k = 1 + contrast / 100;
+    const lut = new Uint8ClampedArray(256);
+    for (let v = 0; v < 256; v++) lut[v] = (v * b - 128) * k + 128; // zelfde volgorde als CSS brightness() contrast()
+    const d = ctx.getImageData(0, 0, sw, sh);
+    for (let i = 0; i < d.data.length; i += 4) {
+      d.data[i] = lut[d.data[i]];
+      d.data[i + 1] = lut[d.data[i + 1]];
+      d.data[i + 2] = lut[d.data[i + 2]];
+    }
+    ctx.putImageData(d, 0, 0);
+  }
+  return new Promise((resolve, reject) =>
+    c.toBlob((blob) => (blob ? resolve(new File([blob], "scan.jpg", { type: "image/jpeg" })) : reject(new Error("Foto kon niet worden bewerkt"))), "image/jpeg", 0.92),
+  );
 }

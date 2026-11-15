@@ -2,12 +2,13 @@ import { useRef, useState, type DragEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Camera, ImagePlus, Loader2, ScanText, X } from "lucide-react";
+import { Camera, ImagePlus, Loader2, Pencil, ScanText, X } from "lucide-react";
 import { toast } from "sonner";
 import { CATEGORIES, parseRecipeText, type CategoryId, type Recipe } from "@/lib/recipes";
 import { saveRecipe } from "@/lib/recipes.functions";
 import { scanRecipeImage } from "@/lib/scan.functions";
 import { compressImage, scanEnhance } from "@/lib/image";
+import { ImageEditor } from "@/components/ImageEditor";
 
 /** Maakt een element geschikt om een afbeelding op te slepen (pc). */
 function useImageDrop(onFile: (file: File) => void) {
@@ -41,6 +42,9 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
   const [scanning, setScanning] = useState<number | null>(null);
   const [scanMode, setScanMode] = useState<"ai" | "ocr">("ai");
   const [scanText, setScanText] = useState<string | null>(null);
+  // Gekozen foto wacht eerst in de bewerker (draaien/bijsnijden); `lastScan` is het origineel van de laatste scan, voor "opnieuw bewerken".
+  const [editing, setEditing] = useState<File | null>(null);
+  const [lastScan, setLastScan] = useState<File | null>(null);
   const scanCam = useRef<HTMLInputElement>(null);
   const scanFile = useRef<HTMLInputElement>(null);
   const photoRef = useRef<HTMLInputElement>(null);
@@ -55,7 +59,7 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
     }
   }
   const photoDrop = useImageDrop(setPhoto);
-  const scanDrop = useImageDrop((f) => handleScan(f));
+  const scanDrop = useImageDrop((f) => pickScan(f));
 
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -80,8 +84,11 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
     onError: (e) => toast.error(`Bewaren mislukt: ${e.message}`),
   });
 
-  async function handleScan(file?: File) {
-    if (!file) return;
+  function pickScan(file?: File) {
+    if (file) setEditing(file);
+  }
+
+  async function runScan(file: File) {
     setScanning(0);
     setScanText(null);
     try {
@@ -157,14 +164,19 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
             <p className="mt-1">Fotografeer een kookboekpagina of briefje. De tekst wordt gelezen (ook handschrift) en ingevuld — of typ hieronder zelf. <span className="hidden [@media(hover:hover)]:inline">Op de computer kun je een afbeelding ook op deze kaart slepen.</span></p>
           </div>
           <div className="flex flex-wrap items-center gap-3 p-5">
-            <input ref={scanCam} type="file" accept="image/*" capture="environment" hidden onChange={(e) => handleScan(e.target.files?.[0])} />
-            <input ref={scanFile} type="file" accept="image/*" hidden onChange={(e) => handleScan(e.target.files?.[0])} />
+            <input ref={scanCam} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { pickScan(e.target.files?.[0]); e.target.value = ""; }} />
+            <input ref={scanFile} type="file" accept="image/*" hidden onChange={(e) => { pickScan(e.target.files?.[0]); e.target.value = ""; }} />
             <button type="button" className="btn-primary" disabled={scanning !== null} onClick={() => scanCam.current?.click()}>
               <Camera className="h-5 w-5" /> Foto maken
             </button>
             <button type="button" className="btn-outline" disabled={scanning !== null} onClick={() => scanFile.current?.click()}>
               <ImagePlus className="h-5 w-5" /> Afbeelding kiezen
             </button>
+            {lastScan && scanning === null && (
+              <button type="button" className="btn-ghost" onClick={() => setEditing(lastScan)}>
+                <Pencil className="h-5 w-5" /> Foto bewerken en opnieuw scannen
+              </button>
+            )}
             {scanning !== null && (
               <span className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" /> {scanMode === "ai" ? "Recept lezen…" : `Tekst herkennen… ${scanning}%`}
@@ -255,6 +267,17 @@ export function RecipeForm({ recipe, allowScan }: { recipe?: Recipe; allowScan?:
           {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Recept bewaren
         </button>
       </div>
+      {editing && (
+        <ImageEditor
+          file={editing}
+          onCancel={() => setEditing(null)}
+          onDone={(edited) => {
+            setLastScan(editing);
+            setEditing(null);
+            void runScan(edited);
+          }}
+        />
+      )}
     </form>
   );
 }
