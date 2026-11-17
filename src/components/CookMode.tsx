@@ -62,8 +62,9 @@ export function CookMode({ recipe, ingredients, onClose }: { recipe: Recipe; ing
         </div>
         <button className="btn-ghost h-10 w-10 p-0" onClick={onClose} aria-label="Sluiten"><X className="h-5 w-5" /></button>
       </header>
-      <main className="flex flex-1 touch-pan-y items-center justify-center overflow-auto p-6" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-        <div className="max-w-3xl">
+      <main className="flex flex-1 touch-pan-y overflow-auto p-6" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+        {/* m-auto i.p.v. items-center: lange stappen blijven zo van boven af scrolbaar in plaats van bovenaan afgeknipt */}
+        <div className="m-auto max-w-3xl">
           {step === 0 ? (
             <>
               <h2 className="mb-4"><span className="scribble">Klaarzetten</span></h2>

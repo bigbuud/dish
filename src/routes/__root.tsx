@@ -9,10 +9,10 @@ import {
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { Toaster } from "sonner";
-import { FolderInput, HardDriveDownload, LogOut, Plus } from "lucide-react";
+import { FolderInput, HardDriveDownload, LogOut, Menu, Plus } from "lucide-react";
 import appCss from "../styles.css?url";
 import { Logo } from "../components/Logo";
 import { getAuthStatus, logout } from "../lib/auth.functions";
@@ -111,6 +111,41 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+/** Minder vaak gebruikte acties in één menu, zodat de balk bovenaan ook op een smalle telefoon past. */
+function HeaderMenu({ onLogout }: { onLogout: () => void }) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const k = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [open]);
+  const item = "btn-ghost w-full justify-start text-left";
+  return (
+    <div className="relative">
+      <button className="btn-ghost px-2" aria-label="Menu" aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen(!open)}>
+        <Menu className="h-5 w-5" />
+      </button>
+      {open && (
+        <>
+          <button className="fixed inset-0 z-40 cursor-default" tabIndex={-1} aria-hidden onClick={() => setOpen(false)} />
+          <div role="menu" className="card absolute right-0 top-full z-50 mt-2 w-64 p-1">
+            <Link to="/importeren" role="menuitem" className={item} onClick={() => setOpen(false)}>
+              <FolderInput className="h-5 w-5 shrink-0" /> Recepten importeren
+            </Link>
+            <a href="/api/backup" download role="menuitem" className={item} onClick={() => setOpen(false)}>
+              <HardDriveDownload className="h-5 w-5 shrink-0" /> Back-up downloaden
+            </a>
+            <button role="menuitem" className={item} onClick={onLogout}>
+              <LogOut className="h-5 w-5 shrink-0" /> Uitloggen
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function RootComponent() {
   const { queryClient, authed } = Route.useRouteContext();
 
@@ -141,20 +176,12 @@ function RootComponent() {
           </Link>
           {authed && (
             <div className="flex items-center gap-2">
-              <Link to="/recepten/nieuw" className="btn-primary">
+              <Link to="/recepten/nieuw" className="btn-primary" aria-label="Nieuw recept">
                 <Plus className="h-5 w-5" />
                 <span className="hidden sm:inline">Nieuw recept</span>
-                <span className="sm:hidden">Nieuw</span>
+                <span className="hidden min-[380px]:inline sm:hidden">Nieuw</span>
               </Link>
-              <Link to="/importeren" className="btn-ghost px-2" title="Recepten importeren" aria-label="Recepten importeren">
-                <FolderInput className="h-5 w-5" />
-              </Link>
-              <a href="/api/backup" download className="btn-ghost px-2" title="Back-up downloaden (pdf per recept)" aria-label="Back-up downloaden">
-                <HardDriveDownload className="h-5 w-5" />
-              </a>
-              <button onClick={doLogout} className="btn-ghost px-2" title="Uitloggen" aria-label="Uitloggen">
-                <LogOut className="h-5 w-5" />
-              </button>
+              <HeaderMenu onLogout={doLogout} />
             </div>
           )}
         </div>
