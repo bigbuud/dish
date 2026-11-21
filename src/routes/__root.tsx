@@ -66,7 +66,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       return { authed: false };
     }
     if (!status.authed) {
-      if (path !== "/login") throw redirect({ to: "/login" });
+      // Een gedeelde link (/delen?...) blijft bewaard tot na het inloggen.
+      if (path !== "/login") throw redirect({ to: "/login", search: path === "/delen" ? { next: location.href } : {} });
       return { authed: false };
     }
     if (path === "/login" || path === "/setup") throw redirect({ to: "/" });

@@ -18,7 +18,7 @@ Extra regels voor dit bestand:
 
 const MAX_TEXT = 120_000;
 
-const normalize = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+export const normalizeTitle = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 
 export async function importFile(input: { kind: ImportKind; mime: string; data: string; name: string }): Promise<ImportOutcome> {
   const parts: GeminiPart[] = [];
@@ -56,12 +56,12 @@ export async function importFile(input: { kind: ImportKind; mime: string; data: 
   found = found.filter((r) => r.title && (r.ingredients.length || r.steps.length));
 
   return mutateRecipes((all) => {
-    const seen = new Set(all.map((r) => normalize(r.title)));
+    const seen = new Set(all.map((r) => normalizeTitle(r.title)));
     const added: string[] = [];
     const duplicates: string[] = [];
     const now = new Date().toISOString();
     for (const r of found) {
-      const key = normalize(r.title);
+      const key = normalizeTitle(r.title);
       if (seen.has(key)) { duplicates.push(r.title); continue; }
       seen.add(key);
       const recipe: Recipe = {

@@ -17,3 +17,12 @@ export const importRecipeFile = createServerFn({ method: "POST" })
     const { importFile } = await import("./import.server");
     return importFile(data);
   });
+
+/** Eén recept van een webpagina (de link komt van de deel-knop van de telefoon): ophalen, omzetten en bewaren als "Te controleren". */
+export const importRecipeFromUrl = createServerFn({ method: "POST" })
+  .middleware([requireAuth])
+  .inputValidator(z.object({ url: z.string().trim().url().max(2000) }))
+  .handler(async ({ data }) => {
+    const { importFromUrl } = await import("./import-url.server");
+    return importFromUrl(data.url);
+  });
