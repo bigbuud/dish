@@ -4,11 +4,15 @@ import { KeyRound } from "lucide-react";
 import { login } from "../lib/auth.functions";
 
 export const Route = createFileRoute("/login")({
+  validateSearch: (s: Record<string, unknown>): { next?: string } => ({
+    next: typeof s.next === "string" && s.next.startsWith("/delen") ? s.next : undefined,
+  }),
   head: () => ({ meta: [{ title: "Inloggen — Dish" }] }),
   component: LoginPage,
 });
 
 function LoginPage() {
+  const { next } = Route.useSearch();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -22,7 +26,7 @@ function LoginPage() {
     try {
       await login({ data: { username, password, code } });
       // Volledig herladen: nieuwe cookie, schone staat.
-      window.location.assign("/");
+      window.location.assign(next ?? "/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Inloggen mislukt");
       setCode("");

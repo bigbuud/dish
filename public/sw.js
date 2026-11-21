@@ -19,6 +19,8 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   // Downloads (back-up-zip) nooit in de cache bewaren of uit de cache serveren.
   if (url.pathname.startsWith("/api/")) return;
+  // Gedeelde links (deel-knop van de telefoon) horen niet in de cache.
+  if (url.pathname === "/delen") return;
 
   event.respondWith(
     fetch(req)
